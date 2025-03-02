@@ -1,58 +1,14 @@
-//- MACRO DEFINITIONS------------------------------------------------------------------------------
-#define SERIAL_ENABLE 1u // Macro to enable\disable Serial print
-
-#define SCL 8u
-#define SDA 9u
-
-#define RISING_EDGE(pin)  pinMode((pin), INPUT);bitdelay(2u);
-#define FALLING_EDGE(pin) pinMode((pin), OUTPUT);bitdelay(2u);
-
-//- Macros related to Chapter 1.Data command setting
-#define SET_DATA_CMD    0x40u //- includes setting for B1, B0
-#define ADDR_MODE_MASK  0x04u
-
-//- Macros related to Chapter 2.Address command setting
-#define SET_ADDR_CMD  0xC0u
-#define C0H 0x00u
-#define C1H 0x01u
-#define C2H 0x02u
-#define C3H 0x03u
-#define C4H 0x04u
-#define C5H 0x05u
-
-//- Macros related to chapter 3.Display control
-#define SET_DISP_CMD        0x80u
-#define BRIGHTNESS_LVL_MAX  0x07u
-#define BRIGHTNESS_LVL_MED  0x03u
-#define BRIGHTNESS_LVL_LOW  0x00u
-#define DISPLAY_ON_MASK     0x08u
-
-#define TEST_DATA 0xbFu //- !! EDIT HERE !!
-//- Type Definitions ------------------------------------------------------------------------------
-typedef enum {
-  AUTO_ADDR = 0u,
-  FIX_ADDR,
-}AddressingType;
-
-typedef enum {
-  ALL_OK,
-  ERROR_DETECTED,
-}ErrorStatusType;
-
-typedef enum {
-  FIRST,
-  SUBSEQUENT,
-}StartTxType;
-
-typedef byte uint8;
-
-typedef enum {
-  DATA,
-  CMD,
-}PayloadType;
+#include "tm1637_rravich.h"
 //- Global Variables ------------------------------------------------------------------------------
+uint8 SCLK = 0u;  // The actual pin value will be assigned during run time.
+uint8 SDAT = 0u;
+
 volatile ErrorStatusType ErrSts = ALL_OK;
-volatile uint8 Current_Time[4] = {1,0,3,9};  // {h h m m}
+
+//- These are the starting time of 3 different countries.
+uint8 CurrentCanadaTime[4]  = {1,2,5,7};
+uint8 CurrentGermanTime[4]  = {0,6,5,8};
+uint8 CurrentIndiaTime[4]   = {1,1,3,0};
 
 uint8 DecimalToSegment[10] = {
   0x3F, // 0
@@ -87,17 +43,17 @@ static inline void StartComm(void)
     return;
   }
 
-  // while entering this function, status of SDA = HIGH ; SCL = HIGH
-  if( digitalRead(SCL) != HIGH ||   \
-      digitalRead(SDA) != HIGH)
+  // while entering this function, status of SDAT = HIGH ; SCLK = HIGH
+  if( digitalRead(SCLK) != HIGH ||   \
+      digitalRead(SDAT) != HIGH)
     {
       #if SERIAL_ENABLE
-      Serial.println("ERROR: Cannot start communication due to incorrect level in SDA, SCL");
+      Serial.println("ERROR: Cannot start communication due to incorrect level in SDAT, SCLK");
       #endif
       ErrSts = ERROR_DETECTED;
       return;
     }
-    FALLING_EDGE(SDA);  // Bring SDA level LOW to "Start" communication.
+    FALLING_EDGE(SDAT);  // Bring SDAT level LOW to "Start" communication.
     bitdelay(1);
 }
 
@@ -111,20 +67,20 @@ static inline void StopComm(void)
     return;
   }
   
-  if( digitalRead(SCL) != LOW || \
-      digitalRead(SDA) != LOW)
+  if( digitalRead(SCLK) != LOW || \
+      digitalRead(SDAT) != LOW)
     {
       #if SERIAL_ENABLE
-      Serial.println("ERROR: cannot stop communication because of SDA, SCL level.");
+      Serial.println("ERROR: cannot stop communication because of SDAT, SCLK level.");
       #endif
       ErrSts = ERROR_DETECTED;
       return;
     }
 
-  RISING_EDGE(SCL);
+  RISING_EDGE(SCLK);
   bitdelay(1u);
   
-  RISING_EDGE(SDA); // communication stopped
+  RISING_EDGE(SDAT); // communication stopped
   bitdelay(1u);
 }
 
@@ -132,8 +88,8 @@ void SendTo1637(uint8 TxData, PayloadType payload)
 {
   uint8 SegmentedData = 0u;
   
-  /* - If this function is called after a "Start", SCL=HIGH and SDA=LOW
-   *  - If this function is called after a "SendTo1637, SCL=LOW and SDA=LOW */
+  /* - If this function is called after a "Start", SCLK=HIGH and SDAT=LOW
+   *  - If this function is called after a "SendTo1637, SCLK=LOW and SDAT=LOW */
   if(ErrSts != ALL_OK)
   {
     #if SERIAL_ENABLE
@@ -148,7 +104,6 @@ void SendTo1637(uint8 TxData, PayloadType payload)
     
     if(Data_Cntr == 1)
     {
-      DotBit = !DotBit;
       SegmentedData = SegmentedData | (DotBit << 7);
     }
     TxData = SegmentedData;
@@ -156,25 +111,25 @@ void SendTo1637(uint8 TxData, PayloadType payload)
 
   for(uint8 idx = 0; idx < 8; idx++)
   {
-    FALLING_EDGE(SCL);
+    FALLING_EDGE(SCLK);
     if(bitRead(TxData, idx))
     {
       // val = 1
-      RISING_EDGE(SDA);
+      RISING_EDGE(SDAT);
     }
     else
     {
-      FALLING_EDGE(SDA);
+      FALLING_EDGE(SDAT);
     }
-    RISING_EDGE(SCL);
-  } // 8 rising edges of SCL will be over after the for loop
+    RISING_EDGE(SCLK);
+  } // 8 rising edges of SCLK will be over after the for loop
 
-  FALLING_EDGE(SCL);    // Falling edge of 8th clock
-  pinMode(SDA, OUTPUT); // Prepare for the ACK
+  FALLING_EDGE(SCLK);    // Falling edge of 8th clock
+  pinMode(SDAT, OUTPUT); // Prepare for the ACK
 
-  RISING_EDGE(SCL);  // 9th rising edge
+  RISING_EDGE(SCLK);  // 9th rising edge
   
-  if(digitalRead(SDA) != LOW)
+  if(digitalRead(SDAT) != LOW)
   {
     #if SERIAL_ENABLE
     Serial.println("ERROR: during ack.");
@@ -184,14 +139,14 @@ void SendTo1637(uint8 TxData, PayloadType payload)
     return;
   }
 
-  FALLING_EDGE(SCL); // 9th clock is finished
-  // During the exit of this function SDA, SCL are LOW
+  FALLING_EDGE(SCLK); // 9th clock is finished
+  // During the exit of this function SDAT, SCLK are LOW
 }
 
 //- Global function defitions ---------------------------------------------------------------------
-void TransferData(uint8 Addr, AddressingType AddrTyp)
+void TransferData(uint8 Addr, AddressingType AddrTyp, uint8* TimeInfo)
 {
-  // while entering this function, SCL=HIGH, SDA=LOW
+  // while entering this function, SCLK=HIGH, SDAT=LOW
 
   uint8 DataCmdSet    = (SET_DATA_CMD | (AddrTyp << 2u));
   uint8 ResolvedAddr  = (SET_ADDR_CMD | Addr);
@@ -204,8 +159,8 @@ void TransferData(uint8 Addr, AddressingType AddrTyp)
     return;
   }
   
-  if( digitalRead(SCL) != HIGH || \
-      digitalRead(SDA) != HIGH)
+  if( digitalRead(SCLK) != HIGH || \
+      digitalRead(SDAT) != HIGH)
     {
       #if SERIAL_ENABLE
       Serial.println("ERROR: Cannot transfer data. Previous start comm was not OK");
@@ -235,7 +190,7 @@ void TransferData(uint8 Addr, AddressingType AddrTyp)
   Data_Cntr = 0;
   for(uint8 idx=0; idx < 4; idx++)
   {
-      SendTo1637(Current_Time[idx], DATA);
+      SendTo1637(TimeInfo[idx], DATA);
       Data_Cntr++;
       bitdelay(1);
   }
@@ -246,7 +201,7 @@ void TransferData(uint8 Addr, AddressingType AddrTyp)
   #endif
 
   StartComm();  //- BLOCK 3--------------------------------
-  SendTo1637(SET_DISP_CMD | DISPLAY_ON_MASK | BRIGHTNESS_LVL_MAX, CMD);
+  SendTo1637(SET_DISP_CMD | DISPLAY_ON_MASK | BRIGHTNESS_LVL_LOW, CMD);
   StopComm();   //- ---------------------------------------
 
   #if SERIAL_ENABLE
@@ -255,21 +210,32 @@ void TransferData(uint8 Addr, AddressingType AddrTyp)
   #endif
 }
 
-//- Setup -----------------------------------------------------------------------------------------
-void setup() {
-  Serial.begin(9600u);
-  pinMode(SCL, INPUT);
-  pinMode(SDA, INPUT);
+/*- -----------------------------------------------------------------------------------------------
+* Brief: Function to print to "Console" the computed time of different countries
+*------------------------------------------------------------------------------------------------*/
+void Print_CurrentTimes(void)
+{
+  uint8* CurrTimList[3] = {CurrentCanadaTime, CurrentGermanTime, CurrentIndiaTime};
+
+  Serial.println("Time is displayed in the order: Canada, Germany, India:");
+  for(uint8 idx=0; idx<3; idx++)
+  {
+    Serial.print(CurrTimList[idx][0]);
+    Serial.print(CurrTimList[idx][1]);
+    Serial.print(":");
+    Serial.print(CurrTimList[idx][2]);
+    Serial.println(CurrTimList[idx][3]);
+  }
 }
 
-void compute_time(void)
+void compute_time(uint8* Curr_Time)
 {
   boolean ChangeHour = false;
-  uint8 m_lsb = Current_Time[3];
-  uint8 m_msb = Current_Time[2];
+  uint8 m_lsb = Curr_Time[3];
+  uint8 m_msb = Curr_Time[2];
 
-  uint8 h_lsb = Current_Time[1];
-  uint8 h_msb = Current_Time[0];
+  uint8 h_lsb = Curr_Time[1];
+  uint8 h_msb = Curr_Time[0];
 
   if(m_lsb == 9)
   { //- 10mins has passed
@@ -304,31 +270,62 @@ void compute_time(void)
       h_lsb++; // Example Transitioon 07 --> 08
     }
   }
-  Current_Time[0] = h_msb;
-  Current_Time[1] = h_lsb;
-  Current_Time[2] = m_msb;
-  Current_Time[3] = m_lsb;
+  Curr_Time[0] = h_msb;
+  Curr_Time[1] = h_lsb;
+  Curr_Time[2] = m_msb;
+  Curr_Time[3] = m_lsb;
 }
 
+//- Setup -----------------------------------------------------------------------------------------
+void setup() {
+
+#if SERIAL_ENABLE
+  Serial.begin(9600u);
+#endif
+  
+  pinMode(CAN_SCLK, INPUT);
+  pinMode(CAN_SDAT, INPUT);
+  
+  pinMode(GER_SCLK, INPUT);
+  pinMode(GER_SDAT, INPUT);
+  
+  pinMode(IND_SCLK, INPUT);
+  pinMode(IND_SDAT, INPUT);
+}
+
+//- LOOP function ---------------------------------------------------------------------------------
 void loop() 
 {
   if(Expired_Seconds == 59u)
   {
-    compute_time();  // Compute the time every minute.
+    compute_time(CurrentCanadaTime);  // Compute the time every minute.
+    compute_time(CurrentGermanTime);
+    compute_time(CurrentIndiaTime);
     Expired_Seconds = 0;
   }
 #if SERIAL_ENABLE
-  Serial.print(Current_Time[0]);
-  Serial.print(Current_Time[1]);
-  Serial.print(":");
-  Serial.print(Current_Time[2]);
-  Serial.println(Current_Time[3]);
+  Print_CurrentTimes();
 #endif
 
   #if SERIAL_ENABLE
     Serial.println("Starting New transmission...");
   #endif
-  TransferData(C0H, AUTO_ADDR);
-  delay(1000);
+  DotBit = !DotBit;
+  //- Transfer CANADA time --------------------------------
+  SCLK = CAN_SCLK;
+  SDAT = CAN_SDAT;
+  TransferData(C0H, AUTO_ADDR, CurrentCanadaTime);
+  
+  //- Transfer GERMAN time --------------------------------
+  SCLK = GER_SCLK;
+  SDAT = GER_SDAT;
+  TransferData(C0H, AUTO_ADDR, CurrentGermanTime);
+
+  //- Transfer INDIAN time --------------------------------
+  SCLK = IND_SCLK;
+  SDAT = IND_SDAT;
+  TransferData(C0H, AUTO_ADDR, CurrentIndiaTime);
+
+  delay(2000);  // Adjust this time after measuring actual time taken to finish one loop using millis.
   Expired_Seconds++;
 }
