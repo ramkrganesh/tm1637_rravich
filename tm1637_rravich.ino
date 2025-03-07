@@ -6,9 +6,9 @@ uint8 SDAT = 0u;
 volatile ErrorStatusType ErrSts = ALL_OK;
 
 //- These are the starting time of 3 different countries.
-uint8 CurrentCanadaTime[4]  = {1,2,5,7};
-uint8 CurrentGermanTime[4]  = {0,6,5,8};
-uint8 CurrentIndiaTime[4]   = {1,1,3,0};
+uint8 CurrentCanadaTime[4]  = {1,2,5,2};
+uint8 CurrentGermanTime[4]  = {0,6,5,2};
+uint8 CurrentIndiaTime[4]   = {1,1,2,2};
 
 uint8 DecimalToSegment[10] = {
   0x3F, // 0
@@ -314,18 +314,18 @@ void loop()
   //- Transfer CANADA time --------------------------------
   SCLK = CAN_SCLK;
   SDAT = CAN_SDAT;
-  TransferData(C0H, AUTO_ADDR, CurrentCanadaTime);
-  
+  TransferData(C0H, AUTO_ADDR, CurrentIndiaTime);
+  delay(2);
   //- Transfer GERMAN time --------------------------------
   SCLK = GER_SCLK;
   SDAT = GER_SDAT;
-  TransferData(C0H, AUTO_ADDR, CurrentGermanTime);
-
+  TransferData(C0H, AUTO_ADDR, CurrentCanadaTime);
+  delay(2);
   //- Transfer INDIAN time --------------------------------
   SCLK = IND_SCLK;
   SDAT = IND_SDAT;
-  TransferData(C0H, AUTO_ADDR, CurrentIndiaTime);
+  TransferData(C0H, AUTO_ADDR, CurrentGermanTime);
 
-  delay(2000);  // Adjust this time after measuring actual time taken to finish one loop using millis.
+  delay(996);  // Adjust this time after measuring actual time taken to finish one loop using millis.
   Expired_Seconds++;
 }
