@@ -6,9 +6,9 @@ uint8 SDAT = 0u;
 volatile ErrorStatusType ErrSts = ALL_OK;
 
 //- These are the starting time of 3 different countries.
-uint8 CurrentCanadaTime[4]  = {1,2,5,2};
-uint8 CurrentGermanTime[4]  = {0,6,5,2};
-uint8 CurrentIndiaTime[4]   = {1,1,2,2};
+uint8 CurrentCanadaTime[4]  = {0,5,3,0};
+uint8 CurrentGermanTime[4]  = {1,1,3,0};
+uint8 CurrentIndiaTime[4]   = {0,4,0,0};
 
 uint8 DecimalToSegment[10] = {
   0x3F, // 0
@@ -303,6 +303,7 @@ void loop()
     compute_time(CurrentIndiaTime);
     Expired_Seconds = 0;
   }
+
 #if SERIAL_ENABLE
   Print_CurrentTimes();
 #endif
@@ -310,22 +311,23 @@ void loop()
   #if SERIAL_ENABLE
     Serial.println("Starting New transmission...");
   #endif
-  DotBit = !DotBit;
+  DotBit = 1; //!DotBit; use this code to blink the middle dot
   //- Transfer CANADA time --------------------------------
   SCLK = CAN_SCLK;
   SDAT = CAN_SDAT;
   TransferData(C0H, AUTO_ADDR, CurrentIndiaTime);
-  delay(2);
+  delay(4);
   //- Transfer GERMAN time --------------------------------
   SCLK = GER_SCLK;
   SDAT = GER_SDAT;
   TransferData(C0H, AUTO_ADDR, CurrentCanadaTime);
-  delay(2);
+  delay(4);
   //- Transfer INDIAN time --------------------------------
   SCLK = IND_SCLK;
   SDAT = IND_SDAT;
   TransferData(C0H, AUTO_ADDR, CurrentGermanTime);
 
-  delay(996);  // Adjust this time after measuring actual time taken to finish one loop using millis.
+  delay(1000);  // approximately 434.784 ms to compute the loop function
   Expired_Seconds++;
+
 }
