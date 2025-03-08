@@ -6,9 +6,9 @@ uint8 SDAT = 0u;
 volatile ErrorStatusType ErrSts = ALL_OK;
 
 //- These are the starting time of 3 different countries.
-uint8 CurrentCanadaTime[4]  = {0,5,3,0};
-uint8 CurrentGermanTime[4]  = {1,1,3,0};
-uint8 CurrentIndiaTime[4]   = {0,4,0,0};
+uint8 CurrentCanadaTime[4]  = {0,4,1,8};
+uint8 CurrentGermanTime[4]  = {1,0,1,8};
+uint8 CurrentIndiaTime[4]   = {0,2,4,8};
 
 uint8 DecimalToSegment[10] = {
   0x3F, // 0
@@ -23,10 +23,10 @@ uint8 DecimalToSegment[10] = {
   0x6F, // 9
 };
 
-volatile uint8 Data_Cntr = 0;
-boolean DotBit = true;
-volatile uint8 Expired_Seconds = 0;
-
+volatile  uint8 Data_Cntr       = 0;
+boolean   DotBit                = true; //-unused at the moment
+volatile  uint8 Expired_Seconds = 0;
+volatile  uint8 DisplayCommandSts = 0x0;
 //- Inline functions ------------------------------------------------------------------------------
 static inline void bitdelay(unsigned int delay_us)
 {
@@ -200,9 +200,26 @@ void TransferData(uint8 Addr, AddressingType AddrTyp, uint8* TimeInfo)
   Serial.println("Transmit Brightness...");
   #endif
 
-  StartComm();  //- BLOCK 3--------------------------------
-  SendTo1637(SET_DISP_CMD | DISPLAY_ON_MASK | BRIGHTNESS_LVL_LOW, CMD);
-  StopComm();   //- ---------------------------------------
+  if(DisplayCommandSts != 0x07)
+  { //- it is enough to send the display command once for a display
+    switch(SDA)
+    {
+      case IND_SDAT:
+        DisplayCommandSts |= 0x01;
+      break;
+
+      case GER_SDAT:
+        DisplayCommandSts |= 0x02;
+      break;
+
+      case CAN_SDAT:
+        DisplayCommandSts |= 0x03;
+      break;
+    }
+    StartComm();  //- BLOCK 3--------------------------------
+    SendTo1637(SET_DISP_CMD | DISPLAY_ON_MASK | BRIGHTNESS_LVL_LOW, CMD);
+    StopComm();   //- ---------------------------------------
+  }
 
   #if SERIAL_ENABLE
   if (ErrSts != ERROR_DETECTED)
@@ -296,38 +313,42 @@ void setup() {
 //- LOOP function ---------------------------------------------------------------------------------
 void loop() 
 {
-  if(Expired_Seconds == 59u)
+  if(Expired_Seconds == 60u)
   {
+    Expired_Seconds = 0;
     compute_time(CurrentCanadaTime);  // Compute the time every minute.
     compute_time(CurrentGermanTime);
     compute_time(CurrentIndiaTime);
-    Expired_Seconds = 0;
-  }
+    #if SERIAL_ENABLE
+    Print_CurrentTimes();
+    #endif
 
-#if SERIAL_ENABLE
-  Print_CurrentTimes();
-#endif
-
-  #if SERIAL_ENABLE
+    #if SERIAL_ENABLE
     Serial.println("Starting New transmission...");
-  #endif
-  DotBit = 1; //!DotBit; use this code to blink the middle dot
-  //- Transfer CANADA time --------------------------------
-  SCLK = CAN_SCLK;
-  SDAT = CAN_SDAT;
-  TransferData(C0H, AUTO_ADDR, CurrentIndiaTime);
-  delay(4);
-  //- Transfer GERMAN time --------------------------------
-  SCLK = GER_SCLK;
-  SDAT = GER_SDAT;
-  TransferData(C0H, AUTO_ADDR, CurrentCanadaTime);
-  delay(4);
-  //- Transfer INDIAN time --------------------------------
-  SCLK = IND_SCLK;
-  SDAT = IND_SDAT;
-  TransferData(C0H, AUTO_ADDR, CurrentGermanTime);
-
-  delay(1000);  // approximately 434.784 ms to compute the loop function
+    #endif
+    DotBit = 1; //!DotBit; use this code to blink the middle dot
+    //- Transfer CANADA time --------------------------------
+    SCLK = CAN_SCLK;
+    SDAT = CAN_SDAT;
+    TransferData(C0H, AUTO_ADDR, CurrentIndiaTime);
+    delay(4);
+    //- Transfer GERMAN time --------------------------------
+    SCLK = GER_SCLK;
+    SDAT = GER_SDAT;
+    TransferData(C0H, AUTO_ADDR, CurrentCanadaTime);
+    delay(4);
+    //- Transfer INDIAN time --------------------------------
+    SCLK = IND_SCLK;
+    SDAT = IND_SDAT;
+    TransferData(C0H, AUTO_ADDR, CurrentGermanTime);
+  }
+  if (Expired_Seconds == 0)
+  {
+    delay(600); // transmission of new timings takes already 434.784ms
+  }
+  else
+  {
+    delay(1000);
+  }
   Expired_Seconds++;
-
 }
