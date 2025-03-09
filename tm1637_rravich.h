@@ -33,6 +33,7 @@
 #define BRIGHTNESS_LVL_MED  0x03u
 #define BRIGHTNESS_LVL_LOW  0x00u
 #define DISPLAY_ON_MASK     0x08u
+#define DISPLAY_OFF_MASK    0x00u
 
 
 //- Type Definitions ------------------------------------------------------------------------------

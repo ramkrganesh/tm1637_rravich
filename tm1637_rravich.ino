@@ -6,9 +6,9 @@ uint8 SDAT = 0u;
 volatile ErrorStatusType ErrSts = ALL_OK;
 
 //- These are the starting time of 3 different countries.
-uint8 CurrentCanadaTime[4]  = {0,4,1,8};
-uint8 CurrentGermanTime[4]  = {1,0,1,8};
-uint8 CurrentIndiaTime[4]   = {0,2,4,8};
+uint8 CurrentCanadaTime[4]  = {1,1,1,2};
+uint8 CurrentGermanTime[4]  = {0,4,1,2};
+uint8 CurrentIndiaTime[4]   = {0,9,4,2};
 
 uint8 DecimalToSegment[10] = {
   0x3F, // 0
@@ -27,6 +27,7 @@ volatile  uint8 Data_Cntr       = 0;
 boolean   DotBit                = true; //-unused at the moment
 volatile  uint8 Expired_Seconds = 0;
 volatile  uint8 DisplayCommandSts = 0x0;
+volatile uint8 Err_Cntr = 0;
 //- Inline functions ------------------------------------------------------------------------------
 static inline void bitdelay(unsigned int delay_us)
 {
@@ -227,6 +228,16 @@ void TransferData(uint8 Addr, AddressingType AddrTyp, uint8* TimeInfo)
   #endif
 }
 
+/*- -------------------------------------------------------------------------------------
+* Function to either turn ON or OFF the displays
+*- -------------------------------------------------------------------------------------*/
+void ControlDisplay(uint8 Cmd)
+{
+  StartComm();
+  SendTo1637(SET_DISP_CMD | Cmd | BRIGHTNESS_LVL_LOW, CMD);
+  StopComm();
+}
+
 /*- -----------------------------------------------------------------------------------------------
 * Brief: Function to print to "Console" the computed time of different countries
 *------------------------------------------------------------------------------------------------*/
@@ -313,6 +324,54 @@ void setup() {
 //- LOOP function ---------------------------------------------------------------------------------
 void loop() 
 {
+  if (ErrSts != ALL_OK && Err_Cntr < 3)
+  {
+    Err_Cntr++;  // Try 3 times before stopping clock display update.
+    ErrSts = ALL_OK;
+  }
+  else if(Err_Cntr == 3)
+  {
+    Err_Cntr++;
+    ErrSts = ALL_OK;
+
+    SCLK = CAN_SCLK;
+    SDAT = CAN_SDAT;
+    ControlDisplay(DISPLAY_OFF_MASK);
+    delay(4);
+
+    ErrSts = ALL_OK;
+    SCLK = GER_SCLK;
+    SDAT = GER_SDAT;
+    ControlDisplay(DISPLAY_OFF_MASK);
+    delay(4);
+
+    ErrSts = ALL_OK;
+    SCLK = IND_SCLK;
+    SDAT = IND_SDAT;
+    ControlDisplay(DISPLAY_OFF_MASK);
+    delay(4);
+  }
+  else if (Err_Cntr == 4)
+  {
+    ErrSts = ALL_OK;
+    SCLK = CAN_SCLK;
+    SDAT = CAN_SDAT;
+    ControlDisplay(DISPLAY_ON_MASK);
+    delay(4);
+
+    ErrSts = ALL_OK;
+    SCLK = GER_SCLK;
+    SDAT = GER_SDAT;
+    ControlDisplay(DISPLAY_ON_MASK);
+    delay(4);
+
+    ErrSts = ALL_OK;
+    SCLK = IND_SCLK;
+    SDAT = IND_SDAT;
+    ControlDisplay(DISPLAY_ON_MASK);
+    delay(4);
+  }
+
   if(Expired_Seconds == 60u)
   {
     Expired_Seconds = 0;
