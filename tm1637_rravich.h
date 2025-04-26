@@ -1,6 +1,5 @@
 #include "Arduino.h"
 //- MACRO DEFINITIONS------------------------------------------------------------------------------
-#define SERIAL_ENABLE 0u // Macro to enable\disable Serial print
 
 #define CAN_SCLK  7u
 #define CAN_SDAT  6u
@@ -35,8 +34,8 @@
 #define DISPLAY_ON_MASK     0x08u
 #define DISPLAY_OFF_MASK    0x00u
 
-
 //- Type Definitions ------------------------------------------------------------------------------
+
 typedef enum {
   AUTO_ADDR = 0u,
   FIX_ADDR,
@@ -58,3 +57,9 @@ typedef enum {
   DATA,
   CMD,
 }PayloadType;
+
+typedef enum {
+  CANADA,
+  GERMANY,
+  INDIA
+}Country_t;

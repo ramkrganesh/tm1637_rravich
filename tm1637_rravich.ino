@@ -1,4 +1,7 @@
+#include "Global_Cfg.h"
 #include "tm1637_rravich.h"
+#include "ds3231_driver.h"
+
 //- Global Variables ------------------------------------------------------------------------------
 uint8 SCLK = 0u;  // The actual pin value will be assigned during run time.
 uint8 SDAT = 0u;
@@ -6,9 +9,12 @@ uint8 SDAT = 0u;
 volatile ErrorStatusType ErrSts = ALL_OK;
 
 //- These are the starting time of 3 different countries.
-uint8 CurrentCanadaTime[4]  = {1,1,1,2};
-uint8 CurrentGermanTime[4]  = {0,4,1,2};
-uint8 CurrentIndiaTime[4]   = {0,9,4,2};
+Time_t CurrentTime;
+uint8 CurrentCanadaTime[4]  = {0,0,0,0};
+uint8 CurrentGermanTime[4]  = {0,0,0,0};
+uint8 CurrentIndiaTime[4]   = {0,0,0,0};
+byte PreviousMinuteValue = 61u;
+boolean WriteToDisplay_Flag = false;
 
 uint8 DecimalToSegment[10] = {
   0x3F, // 0
@@ -256,6 +262,7 @@ void Print_CurrentTimes(void)
   }
 }
 
+#if 0 //- Not needed anymore ---------------------
 void compute_time(uint8* Curr_Time)
 {
   boolean ChangeHour = false;
@@ -303,6 +310,69 @@ void compute_time(uint8* Curr_Time)
   Curr_Time[2] = m_msb;
   Curr_Time[3] = m_lsb;
 }
+#endif
+
+void ComputeTime(uint8* country_time, Country_t country)
+{
+  short hr;
+  short min;
+
+  switch(country)
+  {
+    case CANADA: /* For Canada time only the Hr must be adjusted. Mins shall remain the same */
+      // if(CurrentTime.hr < 6u)
+      // {
+      //   hr = CurrentTime.hr + 6u;
+      // }
+      // else if(CurrentTime.hr > 6u)
+      // {
+      //   hr = CurrentTime.hr - 6u;
+      // }
+      // else
+      // {
+      //   hr = 12u
+      // }
+      hr = (CurrentTime.hr - 6u);
+      if(hr < 0)
+      {
+        hr = hr + 12u;
+      }
+      else if(hr == 0)
+      {
+        hr = 12u;
+      }
+      country_time[0] = (byte)(hr / 10);
+      country_time[1] = (byte)(hr % 10);
+      country_time[2] = (byte)(CurrentTime.min / 10);
+      country_time[3] = (byte)(CurrentTime.min % 10);
+    break;
+
+    case GERMANY:
+      country_time[0] = (byte)(CurrentTime.hr / 10u);
+      country_time[1] = (byte)(CurrentTime.hr % 10u);
+      country_time[2] = (byte)(CurrentTime.min / 10u);
+      country_time[3] = (byte)(CurrentTime.min % 10u);
+    break;
+
+    case INDIA:
+      hr = CurrentTime.hr + 3u;
+      if(hr > 12u)
+      {
+        hr = hr - 12u;
+      }
+
+      min = CurrentTime.min + 30u;
+      if(min > 60u)
+      {
+        min = min - 60u;
+      }
+      country_time[0] = (byte)(hr / 10u);
+      country_time[1] = (byte)(hr % 10u);
+      country_time[2] = (byte)(min / 10u);
+      country_time[3] = (byte)(min % 10u);
+    break;
+  }
+}
 
 //- Setup -----------------------------------------------------------------------------------------
 void setup() {
@@ -319,11 +389,14 @@ void setup() {
   
   pinMode(IND_SCLK, INPUT);
   pinMode(IND_SDAT, INPUT);
+
+  SetTimeInDS3231();
 }
 
 //- LOOP function ---------------------------------------------------------------------------------
 void loop() 
 {
+
   if (ErrSts != ALL_OK && Err_Cntr < 3)
   {
     Err_Cntr++;  // Try 3 times before stopping clock display update.
@@ -371,43 +444,54 @@ void loop()
     ControlDisplay(DISPLAY_ON_MASK);
     delay(4);
   }
+  CurrentTime = GetTimeFromDS3231();
+  ComputeTime(&CurrentGermanTime[0], GERMANY);
+  ComputeTime(&CurrentCanadaTime[0], CANADA);
+  ComputeTime(&CurrentIndiaTime[0] , INDIA);
 
-  if(Expired_Seconds == 60u)
+  if(PreviousMinuteValue != CurrentTime.min)
   {
-    Expired_Seconds = 0;
-    compute_time(CurrentCanadaTime);  // Compute the time every minute.
-    compute_time(CurrentGermanTime);
-    compute_time(CurrentIndiaTime);
-    #if SERIAL_ENABLE
+    PreviousMinuteValue = CurrentTime.min;
+    WriteToDisplay_Flag = true;
+  }
+
+#if defined(DEBUG_ENABLED)
+  Serial.print("Time = ");
+  Serial.print(CurrentGermanTime[0]);
+  Serial.print(CurrentGermanTime[1]);
+  Serial.print(":");
+  Serial.print(CurrentGermanTime[2]);
+  Serial.print(CurrentGermanTime[3]);
+  Serial.print(":");
+  Serial.print(CurrentTime.sec / 10u);
+  Serial.println( (byte) ((float)(CurrentTime.sec % 10)));
+#endif
+#if SERIAL_ENABLE
     Print_CurrentTimes();
-    #endif
-
-    #if SERIAL_ENABLE
-    Serial.println("Starting New transmission...");
-    #endif
-    DotBit = 1; //!DotBit; use this code to blink the middle dot
-    //- Transfer CANADA time --------------------------------
-    SCLK = CAN_SCLK;
-    SDAT = CAN_SDAT;
-    TransferData(C0H, AUTO_ADDR, CurrentIndiaTime);
-    delay(4);
-    //- Transfer GERMAN time --------------------------------
-    SCLK = GER_SCLK;
-    SDAT = GER_SDAT;
-    TransferData(C0H, AUTO_ADDR, CurrentCanadaTime);
-    delay(4);
-    //- Transfer INDIAN time --------------------------------
-    SCLK = IND_SCLK;
-    SDAT = IND_SDAT;
-    TransferData(C0H, AUTO_ADDR, CurrentGermanTime);
-  }
-  if (Expired_Seconds == 0)
+#endif
+  
+  if(WriteToDisplay_Flag == true)
   {
-    delay(600); // transmission of new timings takes already 434.784ms
+    WriteToDisplay_Flag = false;
+  #if SERIAL_ENABLE
+      Serial.println("Starting New transmission...");
+  #endif
+      DotBit = 1; //!DotBit; use this code to blink the middle dot
+      //- Transfer CANADA time --------------------------------
+      SCLK = CAN_SCLK;
+      SDAT = CAN_SDAT;
+      TransferData(C0H, AUTO_ADDR, CurrentIndiaTime);
+      delay(4);
+      //- Transfer GERMAN time --------------------------------
+      SCLK = GER_SCLK;
+      SDAT = GER_SDAT;
+      TransferData(C0H, AUTO_ADDR, CurrentCanadaTime);
+      delay(4);
+      //- Transfer INDIAN time --------------------------------
+      SCLK = IND_SCLK;
+      SDAT = IND_SDAT;
+      TransferData(C0H, AUTO_ADDR, CurrentGermanTime);
   }
-  else
-  {
-    delay(1000);
-  }
-  Expired_Seconds++;
+  delay(3000);
 }
+
