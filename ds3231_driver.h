@@ -19,8 +19,8 @@
 #define REG_DS3231_YEAR     0x06
 
 #define DS3231_DEVICE_ADDR  0x68u
-#define INITIAL_TIME_HR     0x51u //- 11AM
-#define INITIAL_TIME_MIN    0x40u
+#define INITIAL_TIME_HR     0x64u //- 4PM
+#define INITIAL_TIME_MIN    0x00u
 #define INITIAL_TIME_SEC    0x00u
 
 #define INITIAL_TIME_DATE   0x02u
