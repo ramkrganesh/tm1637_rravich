@@ -19,13 +19,13 @@
 #define REG_DS3231_YEAR     0x06
 
 #define DS3231_DEVICE_ADDR  0x68u
-#define INITIAL_TIME_HR     0x62u //- 2PM
-#define INITIAL_TIME_MIN    0x00u
+#define INITIAL_TIME_HR     0x51u //- 11AM
+#define INITIAL_TIME_MIN    0x40u
 #define INITIAL_TIME_SEC    0x00u
 
-#define INITIAL_TIME_DATE   0x26u
-#define INITIAL_TIME_DAY    0x07u //- Saturday
-#define INITIAL_TIME_MONTH  0x04u
+#define INITIAL_TIME_DATE   0x02u
+#define INITIAL_TIME_DAY    0x01u //- SUNDAY
+#define INITIAL_TIME_MONTH  0x11u
 #define INITIAL_TIME_YEAR   0x25u
 
 /**

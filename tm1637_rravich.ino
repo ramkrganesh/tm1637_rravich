@@ -355,7 +355,7 @@ void ComputeTime(uint8* country_time, Country_t country)
     break;
 
     case INDIA:
-      hr = CurrentTime.hr + 3u;
+      hr = CurrentTime.hr + 4u; // ----------ADJUST HERE FOR DAY LIGHT SAVINGS
       if(hr > 12u)
       {
         hr = hr - 12u;
@@ -445,6 +445,7 @@ void loop()
     delay(4);
   }
   CurrentTime = GetTimeFromDS3231();
+
   ComputeTime(&CurrentGermanTime[0], GERMANY);
   ComputeTime(&CurrentCanadaTime[0], CANADA);
   ComputeTime(&CurrentIndiaTime[0] , INDIA);
@@ -478,18 +479,18 @@ void loop()
   #endif
       DotBit = 1; //!DotBit; use this code to blink the middle dot
       //- Transfer CANADA time --------------------------------
-      SCLK = CAN_SCLK;
-      SDAT = CAN_SDAT;
+      SCLK = IND_SCLK;
+      SDAT = IND_SDAT;
       TransferData(C0H, AUTO_ADDR, CurrentIndiaTime);
       delay(4);
       //- Transfer GERMAN time --------------------------------
-      SCLK = GER_SCLK;
-      SDAT = GER_SDAT;
+      SCLK = CAN_SCLK;
+      SDAT = CAN_SDAT;
       TransferData(C0H, AUTO_ADDR, CurrentCanadaTime);
       delay(4);
       //- Transfer INDIAN time --------------------------------
-      SCLK = IND_SCLK;
-      SDAT = IND_SDAT;
+      SCLK = GER_SCLK;
+      SDAT = GER_SDAT;
       TransferData(C0H, AUTO_ADDR, CurrentGermanTime);
   }
   delay(3000);

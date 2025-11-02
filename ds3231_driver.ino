@@ -40,7 +40,7 @@ Time_t GetTimeFromDS3231(void)
     
     ret_time.sec = (((ret_time.sec & 0xF0) >> 4) * 10) + (ret_time.sec & 0x0F);
     ret_time.min = (((ret_time.min & 0xF0) >> 4) * 10) + (ret_time.min & 0x0F);
-    ret_time.hr  = (ret_time.hr & 0x10) | (ret_time.hr & 0xF);
+    ret_time.hr  = (ret_time.hr & 0x10 == 0x10? 10u : 0u) + (ret_time.hr & 0xF);
 
 #if defined (DEBUG_ENABLED)
     Serial.print("Time: ");
