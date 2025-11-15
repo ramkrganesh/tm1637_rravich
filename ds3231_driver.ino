@@ -1,6 +1,6 @@
 #include "Wire.h"
 #include "ds3231_driver.h"
-
+#include "Global_Cfg.h"
 /**
 * Brief Function to initialize the time machine of DS3231.
 * Call this function only once during the "Setup" stage.
@@ -40,8 +40,16 @@ Time_t GetTimeFromDS3231(void)
     
     ret_time.sec = (((ret_time.sec & 0xF0) >> 4) * 10) + (ret_time.sec & 0x0F);
     ret_time.min = (((ret_time.min & 0xF0) >> 4) * 10) + (ret_time.min & 0x0F);
-    ret_time.hr  = (ret_time.hr & 0xF); // read bits 0 - 3
-
+    //ret_time.hr  = (ret_time.hr & 0xF); // read bits 0 - 3
+    bool TenHr = ((ret_time.hr >> 4) & 0x1u != 0u);
+    if (true == TenHr)
+    {
+      ret_time.hr = 10 + (ret_time.hr & 0x0Fu);
+    }
+    else
+    {
+      ret_time.hr = ret_time.hr & 0x0Fu;
+    }
 #if defined (DEBUG_ENABLED)
     Serial.print("Time: ");
     Serial.print(ret_time.hr, DEC);

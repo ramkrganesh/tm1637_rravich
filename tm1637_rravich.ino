@@ -320,18 +320,6 @@ void ComputeTime(uint8* country_time, Country_t country)
   switch(country)
   {
     case CANADA: /* For Canada time only the Hr must be adjusted. Mins shall remain the same */
-      // if(CurrentTime.hr < 6u)
-      // {
-      //   hr = CurrentTime.hr + 6u;
-      // }
-      // else if(CurrentTime.hr > 6u)
-      // {
-      //   hr = CurrentTime.hr - 6u;
-      // }
-      // else
-      // {
-      //   hr = 12u
-      // }
       hr = (CurrentTime.hr - 6u);
       if(hr < 0)
       {
