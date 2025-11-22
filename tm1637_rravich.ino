@@ -352,7 +352,7 @@ void ComputeTime(uint8* country_time, Country_t country)
       min = CurrentTime.min + 30u;
       if(min > 60u)
       {
-        hr++
+        hr++;
         min = min - 60u;
       }
       country_time[0] = (byte)(hr / 10u);
