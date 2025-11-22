@@ -23,8 +23,8 @@
 #define INITIAL_TIME_MIN    0x00u
 #define INITIAL_TIME_SEC    0x00u
 
-#define INITIAL_TIME_DATE   0x16u
-#define INITIAL_TIME_DAY    0x01u //- SUN
+#define INITIAL_TIME_DATE   0x22u
+#define INITIAL_TIME_DAY    0x07u //- SUN
 #define INITIAL_TIME_MONTH  0x11u
 #define INITIAL_TIME_YEAR   0x25u
 
