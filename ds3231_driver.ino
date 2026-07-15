@@ -40,15 +40,18 @@ Time_t GetTimeFromDS3231(void)
     
     ret_time.sec = (((ret_time.sec & 0xF0) >> 4) * 10) + (ret_time.sec & 0x0F);
     ret_time.min = (((ret_time.min & 0xF0) >> 4) * 10) + (ret_time.min & 0x0F);
-    //ret_time.hr  = (ret_time.hr & 0xF); // read bits 0 - 3
-    bool TenHr = ((ret_time.hr >> 4) & 0x1u != 0u);
-    if (true == TenHr)
+
+    // Decode the DS3231 hour register.
+    // In 12-hour mode, bit 6 = 1 and bit 5 = PM indicator; bit 4 is the 10-hour BCD digit.
+    if ((ret_time.hr & 0x40u) != 0u)
     {
-      ret_time.hr = 10 + (ret_time.hr & 0x0Fu);
+      bool tenHour = (ret_time.hr & 0x10u) != 0u;
+      ret_time.hr = (tenHour ? 10 : 0) + (ret_time.hr & 0x0Fu);
     }
     else
     {
-      ret_time.hr = ret_time.hr & 0x0Fu;
+      // 24-hour mode: top nibble is BCD tens digit.
+      ret_time.hr = (((ret_time.hr >> 4) & 0x03u) * 10) + (ret_time.hr & 0x0Fu);
     }
 #if defined (DEBUG_ENABLED)
     Serial.print("Time: ");
